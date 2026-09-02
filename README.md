@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EuroCV
 
-## Getting Started
+**Your European University CV, made simple.**
 
-First, run the development server:
+An AI-powered CV builder for Georgian students applying to universities in Europe. Students enter their education,
+languages, projects, experience, achievements and activities; Claude rewrites it into professional European-style CV
+content; the result is previewed live and exported as an A4 PDF.
+
+## Stack
+
+- Next.js 16 (App Router, TypeScript) · React 19
+- Tailwind CSS 4 · shadcn/ui (Base UI)
+- Anthropic SDK (`@anthropic-ai/sdk`) with structured outputs — server-side only
+- `@react-pdf/renderer` for A4 PDF generation with bundled Inter / Source Serif 4
+- Zustand (persisted to localStorage) for CVs and entitlements in the MVP
+
+## Getting started
 
 ```bash
+cp .env.example .env.local   # add your ANTHROPIC_API_KEY
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project layout
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/                 routes (landing, builder, cv result, dashboard, pricing, checkout, legal, api/*)
+  components/
+    builder/           multi-step form, live preview shell, loading screen
+    cv/                HTML template renderer, scaled A4 preview, PDF renderer
+    result/            template switching, download, AI review panel
+    dashboard/ pricing/ landing/ layout/ brand/ ui/
+  lib/
+    cv/                data model (types.ts), option lists, validation, mapping to render-ready document, example profile
+    ai/                Claude client, prompts, generation/review/apply functions (server-only)
+    store/             zustand stores (cvs, user plan)
+    auth/              session seam for future Google/email login
+    api/               typed fetch client + route helpers
+public/fonts/          TTFs used by the PDF renderer
+```
 
-## Learn More
+## How AI generation works
 
-To learn more about Next.js, take a look at the following resources:
+1. The builder data (`CVData`) is mapped deterministically to a `CVDocument` (dates formatted, bullets split).
+2. The document is sent to Claude with a system prompt that only allows rewriting, never inventing.
+3. The response is validated against a Zod schema (structured outputs) and then hardened server-side: contact
+   details, languages, test scores and skills are copied back from the student's own data, and any section whose entry
+   count changed is replaced by the original.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Roadmap seams
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Auth**: `src/lib/auth/session.ts` — implement `getSession()` and flip `AUTH_ENABLED`.
+- **Database**: `src/lib/store/cv-store.ts` exposes a repository-like API; replace persistence with server calls.
+- **Payments**: `src/components/pricing/checkout-view.tsx` — replace the placeholder submit with a Stripe Checkout
+  session, and enforce entitlement in `src/app/api/pdf/route.tsx`.
