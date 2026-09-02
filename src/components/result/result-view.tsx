@@ -98,6 +98,11 @@ export function ResultView({ id }: { id: string }) {
       await downloadPdf(document, cv.templateId);
       toast.success("Your CV is downloading.");
     } catch (error) {
+      if (error instanceof ApiError && error.proRequired) {
+        setUpgradeReason("PDF download is included in EuroCV Pro.");
+        setUpgradeOpen(true);
+        return;
+      }
       toast.error(error instanceof ApiError ? error.message : "We couldn't create your PDF right now. Please try again.");
     } finally {
       setDownloading(false);
@@ -126,6 +131,11 @@ export function ResultView({ id }: { id: string }) {
       const review = await reviewCVRequest(document, cv.data);
       setReview(id, review);
     } catch (error) {
+      if (error instanceof ApiError && error.proRequired) {
+        setUpgradeReason("AI CV improvement is included in EuroCV Pro.");
+        setUpgradeOpen(true);
+        return;
+      }
       setReviewError(error instanceof ApiError ? error.message : "We couldn't review your CV right now. Please try again.");
     } finally {
       setReviewing(false);

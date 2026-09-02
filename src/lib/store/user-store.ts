@@ -1,43 +1,70 @@
 "use client";
 
+import { useEffect } from "react";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 export type Plan = "free" | "pro";
 
+export interface PaymentsInfo {
+  configured: boolean;
+  environment: "sandbox" | "production";
+  clientToken: string | null;
+  priceId: string | null;
+}
+
 /**
- * Entitlements for the MVP live in the browser. Once authentication and
- * payments exist this becomes a server-backed session; the hook shape is
- * designed so consumers don't need to change.
+ * Entitlement state, loaded from the server. The server keeps the Pro
+ * entitlement in a signed cookie, so this store is only a cache of what the
+ * server said; `refresh()` re-reads it after checkout or restore.
  */
 interface UserStore {
   plan: Plan;
-  purchasedAt: string | null;
+  email: string | null;
+  payments: PaymentsInfo;
+  devUnlock: boolean;
   hasHydrated: boolean;
-  setHasHydrated: () => void;
-  upgradeToPro: () => void;
-  resetPlan: () => void;
+  refresh: () => Promise<void>;
 }
 
-export const useUserStore = create<UserStore>()(
-  persist(
-    (set) => ({
-      plan: "free",
-      purchasedAt: null,
-      hasHydrated: false,
-      setHasHydrated: () => set({ hasHydrated: true }),
-      upgradeToPro: () => set({ plan: "pro", purchasedAt: new Date().toISOString() }),
-      resetPlan: () => set({ plan: "free", purchasedAt: null }),
-    }),
-    {
-      name: "eurocv:user",
-      version: 1,
-      partialize: (s) => ({ plan: s.plan, purchasedAt: s.purchasedAt }),
-      onRehydrateStorage: () => (state) => state?.setHasHydrated(),
-    },
-  ),
-);
+let inflight: Promise<void> | null = null;
+
+export const useUserStore = create<UserStore>()((set) => ({
+  plan: "free",
+  email: null,
+  payments: { configured: false, environment: "sandbox", clientToken: null, priceId: null },
+  devUnlock: false,
+  hasHydrated: false,
+  refresh: () => {
+    if (inflight) return inflight;
+    inflight = fetch("/api/entitlement", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: Partial<UserStore> | null) => {
+        set({
+          plan: data?.plan === "pro" ? "pro" : "free",
+          email: data?.email ?? null,
+          payments: data?.payments ?? { configured: false, environment: "sandbox", clientToken: null, priceId: null },
+          devUnlock: Boolean(data?.devUnlock),
+          hasHydrated: true,
+        });
+      })
+      .catch(() => set({ hasHydrated: true }))
+      .finally(() => {
+        inflight = null;
+      });
+    return inflight;
+  },
+}));
+
+/** Returns the entitlement, loading it from the server on first use. */
+export function useEntitlement(): UserStore {
+  const store = useUserStore();
+  const { hasHydrated, refresh } = store;
+  useEffect(() => {
+    if (!hasHydrated) void refresh();
+  }, [hasHydrated, refresh]);
+  return store;
+}
 
 export function useIsPro(): boolean {
-  return useUserStore((s) => s.plan === "pro");
+  return useEntitlement().plan === "pro";
 }

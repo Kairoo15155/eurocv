@@ -10,10 +10,22 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
+  /** True when the server refused because the caller isn't on EuroCV Pro. */
+  get proRequired(): boolean {
+    return this.status === 402 || this.code === "pro_required";
+  }
+}
+
+async function readError(response: Response): Promise<{ message?: string; code?: string }> {
+  return response
+    .json()
+    .then((j: { error?: string; code?: string }) => ({ message: j.error, code: j.code }))
+    .catch(() => ({}));
 }
 
 async function post<T>(url: string, body: unknown, fallback: string): Promise<T> {
@@ -28,11 +40,8 @@ async function post<T>(url: string, body: unknown, fallback: string): Promise<T>
     throw new ApiError("We couldn't reach EuroCV. Check your connection and try again.", 0);
   }
   if (!response.ok) {
-    const message = await response
-      .json()
-      .then((j: { error?: string }) => j.error)
-      .catch(() => undefined);
-    throw new ApiError(message || fallback, response.status);
+    const { message, code } = await readError(response);
+    throw new ApiError(message || fallback, response.status, code);
   }
   return response.json() as Promise<T>;
 }
@@ -80,11 +89,8 @@ export async function downloadPdf(document: CVDocument, templateId: TemplateId):
     throw new ApiError("We couldn't reach EuroCV. Check your connection and try again.", 0);
   }
   if (!response.ok) {
-    const message = await response
-      .json()
-      .then((j: { error?: string }) => j.error)
-      .catch(() => undefined);
-    throw new ApiError(message || "We couldn't create your PDF right now. Please try again.", response.status);
+    const { message, code } = await readError(response);
+    throw new ApiError(message || "We couldn't create your PDF right now. Please try again.", response.status, code);
   }
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const match = /filename="([^"]+)"/.exec(disposition);
@@ -98,4 +104,16 @@ export async function downloadPdf(document: CVDocument, templateId: TemplateId):
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function confirmPurchase(transactionId: string): Promise<{ plan: "pro"; email: string }> {
+  return post("/api/checkout/confirm", { transactionId }, "We couldn't confirm your payment right now. Please try again.");
+}
+
+export async function restorePurchase(email: string): Promise<{ plan: "pro"; email: string }> {
+  return post("/api/checkout/restore", { email }, "We couldn't check your purchase right now. Please try again.");
+}
+
+export async function devUnlockPro(): Promise<{ plan: "pro" }> {
+  return post("/api/checkout/dev-unlock", {}, "Not available.");
 }

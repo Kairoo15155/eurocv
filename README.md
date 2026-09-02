@@ -14,7 +14,8 @@ content; the result is previewed live and exported as an A4 PDF.
 - Tailwind CSS 4 · shadcn/ui (Base UI)
 - Anthropic SDK (`@anthropic-ai/sdk`) with structured outputs — server-side only
 - `@react-pdf/renderer` for A4 PDF generation with bundled Inter / Source Serif 4
-- Zustand (persisted to localStorage) for CVs and entitlements in the MVP
+- Zustand (persisted to localStorage) for CVs in the MVP
+- Paddle Billing for the one-time Pro purchase, verified server-side and stored in a signed cookie (see `docs/PAYMENTS.md`)
 
 ## Getting started
 
@@ -39,7 +40,8 @@ src/
   lib/
     cv/                data model (types.ts), option lists, validation, mapping to render-ready document, example profile
     ai/                Claude client, prompts, generation/review/apply functions (server-only)
-    store/             zustand stores (cvs, user plan)
+    store/             zustand stores (cvs, entitlement cache)
+    payments/          Paddle client, entitlement cookie, config
     auth/              session seam for future Google/email login
     api/               typed fetch client + route helpers
 public/fonts/          TTFs used by the PDF renderer
@@ -57,5 +59,5 @@ public/fonts/          TTFs used by the PDF renderer
 
 - **Auth**: `src/lib/auth/session.ts` — implement `getSession()` and flip `AUTH_ENABLED`.
 - **Database**: `src/lib/store/cv-store.ts` exposes a repository-like API; replace persistence with server calls.
-- **Payments**: `src/components/pricing/checkout-view.tsx` — replace the placeholder submit with a Stripe Checkout
-  session, and enforce entitlement in `src/app/api/pdf/route.tsx`.
+- **Payments**: live via Paddle once the variables in `docs/PAYMENTS.md` are set. Pro-only routes are enforced
+  server-side in `src/lib/payments/entitlement.ts`.

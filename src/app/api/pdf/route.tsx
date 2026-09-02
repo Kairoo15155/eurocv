@@ -5,6 +5,7 @@ import { registerPdfFonts } from "@/components/cv/pdf/fonts";
 import { cvDocumentSchema, templateIdSchema } from "@/lib/cv/schema";
 import { cvFileName } from "@/lib/cv/format";
 import { errorResponse, parseBody } from "@/lib/api/http";
+import { requirePro } from "@/lib/payments/entitlement";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,9 +15,9 @@ const bodySchema = z.object({
   templateId: templateIdSchema,
 });
 
-// TODO(auth): once accounts and payments exist, verify the caller's Pro
-// entitlement here instead of relying on the client-side gate.
 export async function POST(request: Request) {
+  const gate = requirePro(request);
+  if (gate) return gate;
   const body = await parseBody(request, bodySchema);
   if (!body.ok) return body.response;
 
