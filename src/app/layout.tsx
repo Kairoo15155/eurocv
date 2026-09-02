@@ -62,7 +62,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const enabled = authEnabled();
   const { user } = enabled ? await getSession() : { user: null };
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable} h-full antialiased`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${sourceSerif.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <AuthProvider initialUser={user} enabled={enabled}>
           {children}

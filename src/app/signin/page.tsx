@@ -15,7 +15,7 @@ export default async function SignInPage(props: PageProps<"/signin">) {
   const search = await props.searchParams;
   const rawNext = Array.isArray(search.next) ? search.next[0] : search.next;
   const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
-  const oauthError = search.error === "oauth";
+  const authError = search.error === "oauth" || search.error === "link";
 
   if (authEnabled()) {
     const { user } = await getSession();
@@ -29,9 +29,11 @@ export default async function SignInPage(props: PageProps<"/signin">) {
           <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
           <p className="mt-1 text-sm text-muted-foreground">Keep your CVs and your Pro purchase across devices.</p>
 
-          {oauthError && (
+          {authError && (
             <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              Google sign-in didn’t complete. Please try again or use your email.
+              {search.error === "link"
+                ? "That sign-in link has expired or was already used. Request a new one below."
+                : "Google sign-in didn’t complete. Please try again or use your email."}
             </p>
           )}
 

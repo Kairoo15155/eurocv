@@ -73,6 +73,39 @@ export function startCVSync(supabase: SupabaseClient, userId: string): () => voi
     if (error) console.warn("[eurocv] CV delete failed", error.message);
   };
 
+  // Subscribe before loading so edits made while the load is in flight are not lost.
+  let prev = useCVStore.getState().cvs;
+  let muted = false;
+  unsubscribe = useCVStore.subscribe((state) => {
+    const next = state.cvs;
+    if (next === prev) return;
+    if (!muted) {
+      for (const id of Object.keys(next)) {
+        if (next[id] !== prev[id]) schedule(next[id]);
+      }
+      for (const id of Object.keys(prev)) {
+        if (!(id in next)) {
+          clearTimeout(timers.get(id));
+          timers.delete(id);
+          void remove(id);
+        }
+      }
+    }
+    prev = next;
+  });
+
+  function schedule(cv: SavedCV) {
+    clearTimeout(timers.get(cv.id));
+    timers.set(
+      cv.id,
+      setTimeout(() => {
+        timers.delete(cv.id);
+        const latest = useCVStore.getState().cvs[cv.id];
+        if (latest) void upsert(latest);
+      }, DEBOUNCE_MS),
+    );
+  }
+
   (async () => {
     const { data, error } = await supabase.from("cvs").select("*").eq("user_id", userId);
     if (stopped) return;
@@ -83,42 +116,24 @@ export function startCVSync(supabase: SupabaseClient, userId: string): () => voi
     const rows = (data ?? []) as CVRow[];
     const store = useCVStore.getState();
     const remoteIds = new Set(rows.map((r) => r.id));
-    const localOnly = Object.values(store.cvs).filter((cv) => !remoteIds.has(cv.id));
+    const toUpload: SavedCV[] = Object.values(store.cvs).filter((cv) => !remoteIds.has(cv.id));
 
-    // Remote wins for CVs that exist in both places; anonymous local CVs move to the account.
-    for (const row of rows) store.importCV(rowToCV(row));
-    if (localOnly.length) {
-      const { error: upErr } = await supabase.from("cvs").upsert(localOnly.map((cv) => cvToRow(cv, userId)));
+    // Newest copy wins per CV; anonymous local CVs move to the account.
+    muted = true;
+    try {
+      for (const row of rows) {
+        const local = store.cvs[row.id];
+        if (!local || row.updated_at > local.updatedAt) store.importCV(rowToCV(row));
+        else if (row.updated_at < local.updatedAt) toUpload.push(local);
+      }
+    } finally {
+      prev = useCVStore.getState().cvs;
+      muted = false;
+    }
+    if (toUpload.length) {
+      const { error: upErr } = await supabase.from("cvs").upsert(toUpload.map((cv) => cvToRow(cv, userId)));
       if (upErr) console.warn("[eurocv] could not upload local CVs", upErr.message);
     }
-    if (stopped) return;
-
-    let prev = useCVStore.getState().cvs;
-    unsubscribe = useCVStore.subscribe((state) => {
-      const next = state.cvs;
-      if (next === prev) return;
-      for (const id of Object.keys(next)) {
-        if (next[id] !== prev[id]) {
-          clearTimeout(timers.get(id));
-          timers.set(
-            id,
-            setTimeout(() => {
-              timers.delete(id);
-              const latest = useCVStore.getState().cvs[id];
-              if (latest) void upsert(latest);
-            }, DEBOUNCE_MS),
-          );
-        }
-      }
-      for (const id of Object.keys(prev)) {
-        if (!(id in next)) {
-          clearTimeout(timers.get(id));
-          timers.delete(id);
-          void remove(id);
-        }
-      }
-      prev = next;
-    });
   })();
 
   return () => {

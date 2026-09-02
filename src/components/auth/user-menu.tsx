@@ -8,6 +8,7 @@ import { ButtonLink } from "@/components/ui/button-link";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -51,14 +52,17 @@ export function UserMenu({ variant = "desktop" }: { variant?: "desktop" | "mobil
         <span className="truncate text-sm">{user.name ?? user.email}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
+          <DropdownMenuItem render={<Link href="/dashboard" />}>My CVs</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/pricing" />}>Plan &amp; billing</DropdownMenuItem>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/dashboard" />}>My CVs</DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/pricing" />}>Plan &amp; billing</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void signOut()} disabled={!enabled}>
-          <LogOutIcon /> Sign out
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => void signOut()} disabled={!enabled}>
+            <LogOutIcon /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

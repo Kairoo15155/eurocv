@@ -10,12 +10,15 @@ import { Label } from "@/components/ui/label";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 
 /**
- * Passwordless sign-in: the student enters their email, receives a 6-digit
- * code, and types it in. New emails create an account automatically.
+ * Passwordless sign-in. The student enters their email and receives a
+ * sign-in link (and, when the email template includes one, a code they can
+ * type instead). New emails create an account automatically.
  */
+const CODE_ENTRY_ENABLED = process.env.NEXT_PUBLIC_AUTH_EMAIL_CODE === "true";
+
 export function SignInForm({ next, googleEnabled }: { next: string; googleEnabled: boolean }) {
   const router = useRouter();
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"email" | "sent">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,14 +30,17 @@ export function SignInForm({ next, googleEnabled }: { next: string; googleEnable
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      },
     });
     setBusy(false);
     if (error) {
-      toast.error(friendlyAuthError(error.message));
+      toast.error(friendlyAuthError(error.message, "send"));
       return;
     }
-    setStep("code");
+    setStep("sent");
   };
 
   const verify = async (e: React.FormEvent) => {
@@ -49,7 +55,7 @@ export function SignInForm({ next, googleEnabled }: { next: string; googleEnable
     });
     setBusy(false);
     if (error) {
-      toast.error(friendlyAuthError(error.message));
+      toast.error(friendlyAuthError(error.message, "verify"));
       return;
     }
     router.push(next);
@@ -61,37 +67,43 @@ export function SignInForm({ next, googleEnabled }: { next: string; googleEnable
     if (!supabase) return;
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
-    if (error) toast.error(friendlyAuthError(error.message));
+    if (error) toast.error(friendlyAuthError(error.message, "oauth"));
   };
 
-  if (step === "code") {
+  if (step === "sent") {
     return (
       <form onSubmit={verify} className="flex flex-col gap-4">
-        <div className="rounded-lg border border-border bg-canvas p-3 text-sm">
+        <div className="rounded-lg border border-border bg-canvas p-4 text-sm" data-testid="link-sent">
           <div className="flex items-start gap-2">
             <MailIcon className="mt-0.5 size-4 shrink-0 text-brand" />
-            <p>
-              We sent a 6-digit code to <strong>{email}</strong>. It may take a minute; check spam too.
-            </p>
+            <div>
+              <p className="font-medium">Check your email</p>
+              <p className="mt-1 text-muted-foreground">
+                We sent a sign-in link to <strong className="text-foreground">{email}</strong>. Open it on this device to
+                continue. It can take a minute; check your spam folder too.
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="code">Code</Label>
-          <Input
-            id="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            autoFocus
-            required
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="123456"
-            className="h-11 text-center text-lg tracking-[0.3em]"
-          />
-        </div>
-        <Button type="submit" className="h-11 w-full" disabled={busy || code.replace(/\s+/g, "").length < 6}>
-          {busy ? "Checking…" : "Sign in"}
-        </Button>
+        {CODE_ENTRY_ENABLED && (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="code">Or enter the code from the email</Label>
+              <Input
+                id="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="12345678"
+                className="h-11 text-center text-lg tracking-[0.3em]"
+              />
+            </div>
+            <Button type="submit" className="h-11 w-full" disabled={busy || code.replace(/\s+/g, "").length < 6}>
+              {busy ? "Checking…" : "Sign in with code"}
+            </Button>
+          </>
+        )}
         <Button type="button" variant="ghost" size="sm" onClick={() => setStep("email")} disabled={busy}>
           <ArrowLeftIcon data-icon="inline-start" />
           Use a different email
@@ -129,18 +141,21 @@ export function SignInForm({ next, googleEnabled }: { next: string; googleEnable
         />
       </div>
       <Button type="submit" className="h-11 w-full" disabled={busy}>
-        {busy ? "Sending…" : "Email me a sign-in code"}
+        {busy ? "Sending…" : "Email me a sign-in link"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">No password needed. New here? This creates your account.</p>
     </form>
   );
 }
 
-function friendlyAuthError(message: string): string {
+function friendlyAuthError(message: string, stage: "send" | "verify" | "oauth" = "send"): string {
   const m = message.toLowerCase();
-  if (m.includes("rate limit") || m.includes("too many")) return "Too many attempts. Please wait a few minutes and try again.";
-  if (m.includes("expired") || m.includes("invalid") || m.includes("token")) return "That code isn't valid or has expired. Request a new one.";
-  if (m.includes("email")) return "Please enter a valid email address.";
+  if (m.includes("rate limit") || m.includes("too many") || m.includes("security purposes"))
+    return "Too many attempts. Please wait a few minutes and try again.";
+  if (stage === "verify" && (m.includes("expired") || m.includes("invalid") || m.includes("token")))
+    return "That code isn't valid or has expired. Request a new one.";
+  if (stage === "send" && (m.includes("invalid") || m.includes("email")))
+    return "Please enter a valid email address.";
   return "Something went wrong. Please try again.";
 }
 

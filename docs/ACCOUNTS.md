@@ -23,8 +23,10 @@ Open **SQL Editor**, paste the contents of `supabase/migrations/20260902000000_i
 - Site URL: `https://eurocv.vercel.app`
 - Redirect URLs: `https://eurocv.vercel.app/auth/callback`, `http://localhost:3000/auth/callback`
 
-**Authentication → Email templates → Magic Link**: the app signs users in with a 6-digit
-code, so the template must contain the code. Replace the body with:
+**Authentication → Email templates → Magic Link** (only editable once custom SMTP is set;
+the free tier's built-in sender keeps the default link-only template). The default link works
+as is. To also let students type a code, include `{{ .Token }}` in the template and set
+`NEXT_PUBLIC_AUTH_EMAIL_CODE=true`. Example:
 
 ```html
 <h2>Your EuroCV sign-in code</h2>
