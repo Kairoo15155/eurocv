@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { authEnabled, getSession } from "@/lib/auth/session";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -56,11 +58,15 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const enabled = authEnabled();
+  const { user } = enabled ? await getSession() : { user: null };
   return (
     <html lang="en" className={`${inter.variable} ${sourceSerif.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        {children}
+        <AuthProvider initialUser={user} enabled={enabled}>
+          {children}
+        </AuthProvider>
         <Toaster position="bottom-center" richColors />
       </body>
     </html>

@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { CVPdf } from "@/components/cv/pdf/cv-pdf";
@@ -15,8 +16,8 @@ const bodySchema = z.object({
   templateId: templateIdSchema,
 });
 
-export async function POST(request: Request) {
-  const gate = requirePro(request);
+export async function POST(request: NextRequest) {
+  const gate = await requirePro(request);
   if (gate) return gate;
   const body = await parseBody(request, bodySchema);
   if (!body.ok) return body.response;

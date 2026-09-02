@@ -1,15 +1,17 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getUserFromRequest, type SessionUser } from "@/lib/auth/session";
+import { createAdminSupabase } from "@/lib/supabase/server";
 import { getSessionSecret } from "./config";
 
 /**
- * Pro entitlement stored in a signed, httpOnly cookie.
+ * Pro entitlement.
  *
- * This is the MVP substitute for a user account: after Paddle confirms a
- * purchase the server issues the cookie, and every Pro-only route verifies
- * it. When accounts arrive, `readEntitlement` becomes a session lookup and
- * nothing else needs to change.
+ * Signed-in users: a row in `purchases` (matched by user id, or by the email
+ * Paddle has for the purchase) grants Pro. Anonymous users: a signed,
+ * httpOnly cookie issued after a verified purchase. When an anonymous buyer
+ * later signs in, the cookie's purchase is attached to the account.
  */
 
 export const ENTITLEMENT_COOKIE = "eurocv_pro";
@@ -19,6 +21,7 @@ export interface Entitlement {
   plan: "free" | "pro";
   email: string | null;
   transactionId: string | null;
+  user: SessionUser | null;
 }
 
 interface Payload {
@@ -26,8 +29,6 @@ interface Payload {
   t: string;
   iat: number;
 }
-
-const FREE: Entitlement = { plan: "free", email: null, transactionId: null };
 
 function sign(data: string, secret: string): string {
   return createHmac("sha256", secret).update(data).digest("base64url");
@@ -41,36 +42,86 @@ export function createEntitlementToken(email: string, transactionId: string): st
   return `${data}.${sign(data, secret)}`;
 }
 
-export function parseEntitlementToken(token: string | undefined | null): Entitlement {
+function parseCookieToken(token: string | undefined | null): { email: string; transactionId: string } | null {
   const secret = getSessionSecret();
-  if (!token || !secret) return FREE;
+  if (!token || !secret) return null;
   const [data, signature] = token.split(".");
-  if (!data || !signature) return FREE;
+  if (!data || !signature) return null;
   const expected = sign(data, secret);
   const a = Buffer.from(signature);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return FREE;
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
     const payload = JSON.parse(Buffer.from(data, "base64url").toString()) as Payload;
-    if (!payload.e || !payload.t) return FREE;
-    if (Date.now() - payload.iat > MAX_AGE_SECONDS * 1000) return FREE;
-    return { plan: "pro", email: payload.e, transactionId: payload.t };
+    if (!payload.e || !payload.t) return null;
+    if (Date.now() - payload.iat > MAX_AGE_SECONDS * 1000) return null;
+    return { email: payload.e, transactionId: payload.t };
   } catch {
-    return FREE;
+    return null;
   }
 }
 
-function cookieFromHeader(header: string | null, name: string): string | undefined {
-  if (!header) return undefined;
-  for (const part of header.split(";")) {
-    const [k, ...rest] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(rest.join("="));
-  }
-  return undefined;
+interface PurchaseRow {
+  user_id: string | null;
+  email: string;
+  paddle_transaction_id: string;
 }
 
-export function readEntitlement(request: Request): Entitlement {
-  return parseEntitlementToken(cookieFromHeader(request.headers.get("cookie"), ENTITLEMENT_COOKIE));
+/** Records a verified purchase (idempotent per transaction). No-op without a database. */
+export async function recordPurchase(email: string, transactionId: string, userId: string | null): Promise<void> {
+  const admin = createAdminSupabase();
+  if (!admin) return;
+  const { error } = await admin
+    .from("purchases")
+    .upsert(
+      { email: email.toLowerCase(), paddle_transaction_id: transactionId, ...(userId ? { user_id: userId } : {}) },
+      { onConflict: "paddle_transaction_id" },
+    );
+  if (error) console.error("[eurocv] recordPurchase failed", error.message);
+}
+
+async function findPurchaseForUser(user: SessionUser): Promise<PurchaseRow | null> {
+  const admin = createAdminSupabase();
+  if (!admin) return null;
+  const byUser = await admin
+    .from("purchases")
+    .select("user_id,email,paddle_transaction_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle<PurchaseRow>();
+  if (byUser.data) return byUser.data;
+
+  const byEmail = await admin
+    .from("purchases")
+    .select("user_id,email,paddle_transaction_id")
+    .ilike("email", user.email)
+    .is("user_id", null)
+    .limit(1)
+    .maybeSingle<PurchaseRow>();
+  if (byEmail.data) {
+    await admin.from("purchases").update({ user_id: user.id }).eq("paddle_transaction_id", byEmail.data.paddle_transaction_id);
+    return { ...byEmail.data, user_id: user.id };
+  }
+  return null;
+}
+
+export async function resolveEntitlement(request: NextRequest): Promise<Entitlement> {
+  const cookie = parseCookieToken(request.cookies.get(ENTITLEMENT_COOKIE)?.value);
+  const user = await getUserFromRequest(request);
+
+  if (user) {
+    const purchase = await findPurchaseForUser(user);
+    if (purchase) return { plan: "pro", email: purchase.email, transactionId: purchase.paddle_transaction_id, user };
+    if (cookie) {
+      // Anonymous purchase made on this browser: attach it to the account.
+      await recordPurchase(cookie.email, cookie.transactionId, user.id);
+      return { plan: "pro", email: cookie.email, transactionId: cookie.transactionId, user };
+    }
+    return { plan: "free", email: user.email, transactionId: null, user };
+  }
+
+  if (cookie) return { plan: "pro", email: cookie.email, transactionId: cookie.transactionId, user: null };
+  return { plan: "free", email: null, transactionId: null, user: null };
 }
 
 export function grantEntitlement(response: NextResponse, email: string, transactionId: string): boolean {
@@ -91,7 +142,8 @@ export function grantEntitlement(response: NextResponse, email: string, transact
 export const PRO_REQUIRED_MESSAGE = "This feature is part of EuroCV Pro.";
 
 /** Returns a 402 response when the caller is not on Pro, otherwise null. */
-export function requirePro(request: Request): NextResponse | null {
-  if (readEntitlement(request).plan === "pro") return null;
+export async function requirePro(request: NextRequest): Promise<NextResponse | null> {
+  const entitlement = await resolveEntitlement(request);
+  if (entitlement.plan === "pro") return null;
   return NextResponse.json({ error: PRO_REQUIRED_MESSAGE, code: "pro_required" }, { status: 402 });
 }

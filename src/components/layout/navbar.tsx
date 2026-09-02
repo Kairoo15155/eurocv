@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MenuIcon } from "lucide-react";
+import { UserMenu } from "@/components/auth/user-menu";
 import { Logo } from "@/components/brand/logo";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -46,9 +47,7 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <ButtonLink variant="ghost" className="h-9 px-3" href="/signin">
-            Sign in
-          </ButtonLink>
+          <UserMenu />
           <ButtonLink className="h-9 px-4" href="/builder/new">
             Create my CV
           </ButtonLink>
@@ -78,9 +77,7 @@ export function Navbar() {
               ))}
             </nav>
             <div className="mt-8 flex flex-col gap-2">
-              <ButtonLink variant="outline" className="h-11 w-full text-base" href="/signin" onClick={() => setOpen(false)}>
-                Sign in
-              </ButtonLink>
+              <UserMenu variant="mobile" />
               <ButtonLink className="h-11 w-full text-base" href="/builder/new" onClick={() => setOpen(false)}>
                 Create my CV
               </ButtonLink>

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { reviewCV } from "@/lib/ai/generate";
 import { GENERIC_REVIEW_MESSAGE } from "@/lib/ai/errors";
@@ -11,8 +11,8 @@ export const maxDuration = 120;
 
 const bodySchema = z.object({ document: cvDocumentSchema, data: cvDataSchema });
 
-export async function POST(request: Request) {
-  const gate = requirePro(request);
+export async function POST(request: NextRequest) {
+  const gate = await requirePro(request);
   if (gate) return gate;
   const body = await parseBody(request, bodySchema);
   if (!body.ok) return body.response;

@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState } from "react";
 import { PlusIcon } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
 import { CVCard } from "@/components/dashboard/cv-card";
 import { Container } from "@/components/layout/container";
 import { UpgradeDialog } from "@/components/result/upgrade-dialog";
@@ -14,6 +17,7 @@ export function DashboardView() {
   const hydrated = useHasHydrated();
   const cvs = useCVStore((s) => s.cvs);
   const isPro = useIsPro();
+  const { user, enabled: authEnabled } = useAuth();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const list = sortedCVs(cvs);
 
@@ -24,7 +28,19 @@ export function DashboardView() {
           <h1 className="text-3xl font-semibold tracking-tight">My CVs</h1>
           <p className="mt-1 text-muted-foreground">
             {isPro ? "EuroCV Pro · " : ""}
-            Saved in this browser. Sign in later to keep them across devices.
+            {user ? (
+              <>Saved to your account ({user.email}).</>
+            ) : authEnabled ? (
+              <>
+                Saved in this browser.{" "}
+                <Link href="/signin?next=/dashboard" className="font-medium text-foreground underline underline-offset-4">
+                  Sign in
+                </Link>{" "}
+                to keep them on every device.
+              </>
+            ) : (
+              <>Saved in this browser.</>
+            )}
           </p>
         </div>
         <ButtonLink className="h-11 px-5" href="/builder/new">

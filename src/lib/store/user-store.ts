@@ -17,9 +17,16 @@ export interface PaymentsInfo {
  * entitlement in a signed cookie, so this store is only a cache of what the
  * server said; `refresh()` re-reads it after checkout or restore.
  */
+export interface AccountUser {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
 interface UserStore {
   plan: Plan;
   email: string | null;
+  user: AccountUser | null;
   payments: PaymentsInfo;
   devUnlock: boolean;
   hasHydrated: boolean;
@@ -31,6 +38,7 @@ let inflight: Promise<void> | null = null;
 export const useUserStore = create<UserStore>()((set) => ({
   plan: "free",
   email: null,
+  user: null,
   payments: { configured: false, environment: "sandbox", clientToken: null, priceId: null },
   devUnlock: false,
   hasHydrated: false,
@@ -42,6 +50,7 @@ export const useUserStore = create<UserStore>()((set) => ({
         set({
           plan: data?.plan === "pro" ? "pro" : "free",
           email: data?.email ?? null,
+          user: data?.user ?? null,
           payments: data?.payments ?? { configured: false, environment: "sandbox", clientToken: null, priceId: null },
           devUnlock: Boolean(data?.devUnlock),
           hasHydrated: true,
