@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { devUnlockEnabled, getPaymentsConfig } from "@/lib/payments/config";
 import { grantEntitlement, recordPurchase, resolveEntitlement } from "@/lib/payments/entitlement";
 import { findPurchaseByEmail } from "@/lib/payments/paddle";
+import { hasApiKey } from "@/lib/ai/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       priceId: payments.configured ? payments.priceId : null,
     },
     devUnlock: devUnlockEnabled(),
+    ai: { available: hasApiKey() },
   };
   const out = NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
   if (response) for (const c of response.cookies.getAll()) out.cookies.set(c);

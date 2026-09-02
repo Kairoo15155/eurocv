@@ -26,7 +26,7 @@ import { FREE_TEMPLATE, TEMPLATES } from "@/lib/cv/options";
 import { toDocument } from "@/lib/cv/to-document";
 import type { ReviewSuggestion, TemplateId } from "@/lib/cv/types";
 import { useCVStore, useHasHydrated } from "@/lib/store/cv-store";
-import { useIsPro } from "@/lib/store/user-store";
+import { useEntitlement, useIsPro } from "@/lib/store/user-store";
 
 export function ResultView({ id }: { id: string }) {
   const router = useRouter();
@@ -36,6 +36,7 @@ export function ResultView({ id }: { id: string }) {
   const setDocument = useCVStore((s) => s.setDocument);
   const setReview = useCVStore((s) => s.setReview);
   const isPro = useIsPro();
+  const { aiAvailable } = useEntitlement();
 
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
@@ -181,10 +182,12 @@ export function ResultView({ id }: { id: string }) {
             <PencilIcon data-icon="inline-start" />
             Edit information
           </ButtonLink>
-          <Button variant="outline" className="h-10 w-full" onClick={() => void regenerate()}>
-            <RefreshCwIcon data-icon="inline-start" />
-            {generated ? "Regenerate with AI" : "Generate with AI"}
-          </Button>
+          {aiAvailable && (
+            <Button variant="outline" className="h-10 w-full" onClick={() => void regenerate()}>
+              <RefreshCwIcon data-icon="inline-start" />
+              {generated ? "Regenerate with AI" : "Generate with AI"}
+            </Button>
+          )}
         </div>
         {!isPro && (
           <p className="mt-3 text-xs text-muted-foreground">
@@ -210,7 +213,7 @@ export function ResultView({ id }: { id: string }) {
               </Link>{" "}
               / {cv.name}
             </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">{generated ? "Your CV is ready" : "Your CV"}</h1>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">{generated || !aiAvailable ? "Your CV is ready" : "Your CV"}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {templateName} template · {document.header.fullName || "No name yet"}
             </p>
@@ -218,7 +221,7 @@ export function ResultView({ id }: { id: string }) {
         </div>
       </div>
 
-      {(stale || !generated) && (
+      {(stale || !generated) && aiAvailable && (
         <div className="mx-auto mt-6 max-w-[1400px] px-5 sm:px-8">
           <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2">
@@ -241,14 +244,18 @@ export function ResultView({ id }: { id: string }) {
         <aside className="hidden lg:block">
           <div className="sticky top-24 space-y-5">
             {sidebar}
-            <ImprovePanel
-              review={cv.review}
-              loading={reviewing}
-              applying={applying}
-              error={reviewError}
-              onRun={() => void runReview()}
-              onApply={(s) => void applySuggestions(s)}
-            />
+            {aiAvailable ? (
+              <ImprovePanel
+                review={cv.review}
+                loading={reviewing}
+                applying={applying}
+                error={reviewError}
+                onRun={() => void runReview()}
+                onApply={(s) => void applySuggestions(s)}
+              />
+            ) : (
+              <AIUnavailableNote />
+            )}
           </div>
         </aside>
 
@@ -278,14 +285,18 @@ export function ResultView({ id }: { id: string }) {
               {sidebar}
             </TabsContent>
             <TabsContent value="improve" className="mt-4">
-              <ImprovePanel
-                review={cv.review}
-                loading={reviewing}
-                applying={applying}
-                error={reviewError}
-                onRun={() => void runReview()}
-                onApply={(s) => void applySuggestions(s)}
-              />
+              {aiAvailable ? (
+                <ImprovePanel
+                  review={cv.review}
+                  loading={reviewing}
+                  applying={applying}
+                  error={reviewError}
+                  onRun={() => void runReview()}
+                  onApply={(s) => void applySuggestions(s)}
+                />
+              ) : (
+                <AIUnavailableNote />
+              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -312,5 +323,17 @@ export function ResultView({ id }: { id: string }) {
         />
       )}
     </SiteShell>
+  );
+}
+
+function AIUnavailableNote() {
+  return (
+    <div className="rounded-xl border border-border bg-white p-5">
+      <h3 className="font-semibold">AI review</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        AI writing and review aren’t available right now. Your CV shows exactly what you entered; you can still edit it,
+        switch templates and download the PDF.
+      </p>
+    </div>
   );
 }

@@ -29,6 +29,8 @@ interface UserStore {
   user: AccountUser | null;
   payments: PaymentsInfo;
   devUnlock: boolean;
+  /** Whether the server can run AI generation (an Anthropic key is configured). */
+  aiAvailable: boolean;
   hasHydrated: boolean;
   refresh: () => Promise<void>;
 }
@@ -41,6 +43,7 @@ export const useUserStore = create<UserStore>()((set) => ({
   user: null,
   payments: { configured: false, environment: "sandbox", clientToken: null, priceId: null },
   devUnlock: false,
+  aiAvailable: true,
   hasHydrated: false,
   refresh: () => {
     if (inflight) return inflight;
@@ -53,6 +56,7 @@ export const useUserStore = create<UserStore>()((set) => ({
           user: data?.user ?? null,
           payments: data?.payments ?? { configured: false, environment: "sandbox", clientToken: null, priceId: null },
           devUnlock: Boolean(data?.devUnlock),
+          aiAvailable: (data as { ai?: { available?: boolean } } | null)?.ai?.available !== false,
           hasHydrated: true,
         });
       })

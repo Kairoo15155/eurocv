@@ -20,7 +20,7 @@ import { toDocument } from "@/lib/cv/to-document";
 import type { CVData } from "@/lib/cv/types";
 import { validateAll, validateStep, type FieldErrors } from "@/lib/cv/validation";
 import { useCVStore, useHasHydrated } from "@/lib/store/cv-store";
-import { useIsPro } from "@/lib/store/user-store";
+import { useEntitlement, useIsPro } from "@/lib/store/user-store";
 
 export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?: number }) {
   const router = useRouter();
@@ -30,6 +30,7 @@ export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?
   const setTemplate = useCVStore((s) => s.setTemplate);
   const setDocument = useCVStore((s) => s.setDocument);
   const isPro = useIsPro();
+  const { aiAvailable } = useEntitlement();
 
   const [step, setStep] = useState(Math.min(Math.max(initialStep, 0), BUILDER_STEPS.length - 1));
   const [maxReached, setMaxReached] = useState(step);
@@ -77,6 +78,13 @@ export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?
       setStep(invalid.step);
       setErrors(invalid.errors);
       toast.error(`Some information on the “${BUILDER_STEPS[invalid.step].label}” step needs attention.`);
+      return;
+    }
+    if (!aiAvailable) {
+      // No AI on this server: finish with the student's own wording.
+      setDocument(id, null);
+      toast.info("AI polishing isn’t available right now, so your CV uses your own wording.");
+      router.push(`/cv/${id}`);
       return;
     }
     setGenerating(true);
@@ -141,10 +149,17 @@ export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?
             </Button>
             <Button className="h-11 px-5" onClick={handleContinue}>
               {isLast ? (
-                <>
-                  <SparklesIcon data-icon="inline-start" />
-                  Generate my CV
-                </>
+                aiAvailable ? (
+                  <>
+                    <SparklesIcon data-icon="inline-start" />
+                    Generate my CV
+                  </>
+                ) : (
+                  <>
+                    Finish my CV
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </>
+                )
               ) : (
                 <>
                   Continue
