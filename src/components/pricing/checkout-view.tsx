@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { initializePaddle, type Paddle } from "@paddle/paddle-js";
+import type { Paddle } from "@paddle/paddle-js";
 import { CheckIcon, LockIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Container } from "@/components/layout/container";
@@ -12,30 +12,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, confirmPurchase, devUnlockPro, restorePurchase } from "@/lib/api/client";
+import { getPaddle, onPaddleEvent, previewPrice } from "@/lib/payments/paddle-client";
+import { PRO_PLAN } from "@/lib/payments/plans";
 import { useEntitlement } from "@/lib/store/user-store";
-
-const PRO_FEATURES = [
-  "PDF download",
-  "All templates",
-  "AI CV improvement",
-  "Multiple CV versions",
-  "Future motivation-letter feature",
-];
 
 /**
  * Checkout. With Paddle configured, opens Paddle's hosted overlay checkout
  * and confirms the transaction server-side before unlocking Pro. Without
  * it, explains that payments aren't live yet and offers purchase restore.
  */
-export function CheckoutView({ returnTo }: { returnTo: string }) {
+export function CheckoutView({ returnTo, countryCode }: { returnTo: string; countryCode?: string }) {
   const router = useRouter();
-  const { plan, payments, devUnlock, hasHydrated, refresh } = useEntitlement();
-  const [email, setEmail] = useState("");
+  const { plan, payments, devUnlock, hasHydrated, refresh, email: knownEmail } = useEntitlement();
+  const [emailInput, setEmailInput] = useState<string | null>(null);
+  // Prefill with the email we already know (a previous purchase on this browser) until the user edits it.
+  const email = emailInput ?? knownEmail ?? "";
+  const setEmail = setEmailInput;
   const [busy, setBusy] = useState(false);
   const paddleRef = useRef<Paddle | null>(null);
   const [paddleReady, setPaddleReady] = useState(false);
+  const [localTotal, setLocalTotal] = useState<string | null>(null);
 
   const safeReturn = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard";
+  const welcomeUrl = `/welcome?return=${encodeURIComponent(safeReturn)}`;
 
   const finishPurchase = async (transactionId: string) => {
     setBusy(true);
@@ -57,8 +56,7 @@ export function CheckoutView({ returnTo }: { returnTo: string }) {
       if (lastError) throw lastError;
       paddleRef.current?.Checkout.close();
       await refresh();
-      toast.success("You're on EuroCV Pro. Thank you!");
-      router.push(safeReturn);
+      router.push(welcomeUrl);
     } catch (error) {
       toast.error(
         error instanceof ApiError
@@ -71,27 +69,32 @@ export function CheckoutView({ returnTo }: { returnTo: string }) {
   };
 
   useEffect(() => {
-    if (!payments.configured || !payments.clientToken || paddleRef.current) return;
+    if (!hasHydrated || !payments.configured) return;
     let cancelled = false;
-    initializePaddle({
-      environment: payments.environment,
-      token: payments.clientToken,
-      eventCallback: (event) => {
-        if (event.name !== "checkout.completed" || !event.data?.transaction_id) return;
-        void finishPurchase(event.data.transaction_id);
-      },
-    })
-      .then((paddle) => {
+    const off = onPaddleEvent((event) => {
+      if (event.name !== "checkout.completed" || !event.data?.transaction_id) return;
+      void finishPurchase(event.data.transaction_id);
+    });
+    getPaddle(payments)
+      .then(async (paddle) => {
         if (cancelled || !paddle) return;
         paddleRef.current = paddle;
         setPaddleReady(true);
+        if (PRO_PLAN.priceId) {
+          try {
+            setLocalTotal(await previewPrice(paddle, PRO_PLAN.priceId, countryCode));
+          } catch {
+            // Fall back to the static label.
+          }
+        }
       })
       .catch(() => toast.error("We couldn't load the payment form. Please refresh and try again."));
     return () => {
       cancelled = true;
+      off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- finishPurchase only depends on stable refs/router
-  }, [payments.configured, payments.clientToken, payments.environment]);
+  }, [hasHydrated, payments, countryCode]);
 
   const openCheckout = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +103,8 @@ export function CheckoutView({ returnTo }: { returnTo: string }) {
     paddle.Checkout.open({
       items: [{ priceId: payments.priceId, quantity: 1 }],
       customer: email ? { email } : undefined,
-      settings: { displayMode: "overlay", theme: "light", locale: "en", showAddTaxId: false },
+      customData: { app: "eurocv", plan: "pro" },
+      settings: { displayMode: "overlay", variant: "one-page", theme: "light", locale: "en", showAddTaxId: false },
     });
   };
 
@@ -109,8 +113,7 @@ export function CheckoutView({ returnTo }: { returnTo: string }) {
     try {
       await devUnlockPro();
       await refresh();
-      toast.success("Pro unlocked for local development.");
-      router.push(safeReturn);
+      router.push(welcomeUrl);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Not available.");
     } finally {
@@ -177,7 +180,7 @@ export function CheckoutView({ returnTo }: { returnTo: string }) {
                   </div>
                 )}
                 <Button type="submit" className="mt-6 h-12 w-full text-base" disabled={!paddleReady || busy}>
-                  {busy ? "Confirming…" : paddleReady ? "Pay €4.99 and unlock Pro" : "Loading secure checkout…"}
+                  {busy ? "Confirming…" : paddleReady ? `Pay ${localTotal ?? PRO_PLAN.fallbackPrice} and unlock Pro` : "Loading secure checkout…"}
                 </Button>
                 <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                   <ShieldCheckIcon className="size-3.5" />
@@ -204,26 +207,30 @@ export function CheckoutView({ returnTo }: { returnTo: string }) {
             )}
           </form>
 
-          <RestorePurchase disabled={!payments.configured} onRestored={async () => {
-            await refresh();
-            router.push(safeReturn);
-          }} />
+          <RestorePurchase
+            disabled={!payments.configured}
+            onRestored={async () => {
+              await refresh();
+              router.push(welcomeUrl);
+            }}
+          />
         </div>
 
         <aside className="h-fit rounded-2xl border border-border bg-canvas p-6">
           <h2 className="font-semibold">Order summary</h2>
           <div className="mt-4 flex items-center justify-between text-sm">
             <span>EuroCV Pro (one-time)</span>
-            <span className="font-medium">€4.99</span>
+            <span className="font-medium">{localTotal ?? PRO_PLAN.fallbackPrice}</span>
           </div>
           <div className="mt-4 border-t border-border pt-4">
             <div className="flex items-center justify-between font-semibold">
               <span>Total</span>
-              <span>€4.99</span>
+              <span data-testid="checkout-total">{localTotal ?? PRO_PLAN.fallbackPrice}</span>
             </div>
+            {localTotal && <p className="mt-1 text-xs text-muted-foreground">Shown in your local currency, tax included where applicable.</p>}
           </div>
           <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
-            {PRO_FEATURES.map((f) => (
+            {PRO_PLAN.features.map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <CheckIcon className="size-4 text-success" />
                 {f}

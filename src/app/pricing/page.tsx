@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Container } from "@/components/layout/container";
 import { SiteShell } from "@/components/layout/site-shell";
 import { PricingTable } from "@/components/pricing/pricing-table";
@@ -27,7 +28,15 @@ const faqs = [
   },
 ];
 
-export default function PricingPage() {
+/**
+ * Country comes from Vercel's geo header so Paddle can localise the price.
+ * When the header is missing (local dev, other hosts) nothing is passed and
+ * Paddle detects the visitor's country itself.
+ */
+export default async function PricingPage() {
+  const headerList = await headers();
+  const country = headerList.get("x-vercel-ip-country");
+  const countryCode = country && /^[A-Z]{2}$/.test(country) ? country : undefined;
   return (
     <SiteShell>
       <section className="border-b border-border bg-canvas py-16">
@@ -39,7 +48,7 @@ export default function PricingPage() {
             </p>
           </div>
           <div className="mx-auto mt-12 max-w-4xl">
-            <PricingTable />
+            <PricingTable countryCode={countryCode} />
           </div>
         </Container>
       </section>

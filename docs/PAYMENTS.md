@@ -48,6 +48,19 @@ Also add your site's domain under **Checkout → Website approval** in Paddle
 (`eurocv.vercel.app`, plus your custom domain later). Paddle refuses to open the checkout
 on unapproved domains.
 
+Then set the **default payment link** (dashboard only, it cannot be set by API):
+**Checkout → Checkout settings → Default payment link** = `https://eurocv.vercel.app/checkout`.
+On live this must be a real, approved domain, not localhost; on sandbox localhost is fine.
+
+`PADDLE_ENVIRONMENT` is mandatory whenever any other Paddle variable is set. The app refuses
+to start with a missing or misspelled value rather than guessing, so live keys can never be
+sent to the sandbox or vice versa.
+
+Prices shown on the pricing page and in checkout come from `Paddle.PricePreview()`, so
+visitors see their local currency with tax included where Paddle applies it. The country is
+taken from Vercel's `x-vercel-ip-country` header when present; otherwise Paddle detects it.
+The app never formats or converts prices itself.
+
 ## 5. Test in sandbox
 
 With `PADDLE_ENVIRONMENT=sandbox`, open `/checkout`, and pay with Paddle's test card
