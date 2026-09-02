@@ -2,6 +2,8 @@
 
 **Your European University CV, made simple.**
 
+Live at **https://eurocv.vercel.app**. Pushes to `main` deploy automatically via Vercel.
+
 An AI-powered CV builder for Georgian students applying to universities in Europe. Students enter their education,
 languages, projects, experience, achievements and activities; Claude rewrites it into professional European-style CV
 content; the result is previewed live and exported as an A4 PDF.
