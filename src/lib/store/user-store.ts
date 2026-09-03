@@ -29,7 +29,7 @@ interface UserStore {
   user: AccountUser | null;
   payments: PaymentsInfo;
   devUnlock: boolean;
-  /** Whether the server can run AI generation (an Anthropic key is configured). */
+  /** Whether the server can run AI generation (a Gemini key is configured). */
   aiAvailable: boolean;
   hasHydrated: boolean;
   refresh: () => Promise<void>;

@@ -1,25 +1,26 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 
 /**
- * Server-only Anthropic client. The API key is read from the environment on
+ * Server-only Gemini client. The API key is read from the environment on
  * the server; nothing in this module can be imported by client components.
+ *
+ * EuroCV runs on the Gemini API free tier (no billing required). Note that
+ * Google may use free-tier content to improve its products; this is
+ * disclosed on the privacy page.
  */
-let client: Anthropic | null = null;
+let client: GoogleGenAI | null = null;
 
-export function getAnthropic(): Anthropic {
+export function getGemini(): GoogleGenAI {
   if (!client) {
-    client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      maxRetries: 2,
-      timeout: 120_000,
-    });
+    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return client;
 }
 
-export const CV_MODEL = process.env.EUROCV_MODEL ?? "claude-opus-5";
+/** Any model listed as "free of charge" on the Gemini pricing page works here. */
+export const CV_MODEL = process.env.EUROCV_MODEL ?? "gemini-3.8-flash";
 
 export function hasApiKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(process.env.GEMINI_API_KEY);
 }

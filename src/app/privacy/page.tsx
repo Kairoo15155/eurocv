@@ -38,8 +38,9 @@ export default function PrivacyPage() {
         <h2>AI processing</h2>
         <p>
           When you generate, review or improve a CV, the information you entered is sent to our server and then to
-          Anthropic’s Claude API to produce the written content. This is necessary for the feature to work. We do not
-          use your information to train models and we do not sell it. AI output is generated from your input only; it is
+          Google’s Gemini API to produce the written content. This is necessary for the feature to work. We use the
+          Gemini API free tier, and Google may use content sent through it to improve its products; we do not sell
+          your information. AI output is generated from your input only; it is
           instructed never to invent achievements, qualifications or experience, but you must review all content before
           using it.
         </p>

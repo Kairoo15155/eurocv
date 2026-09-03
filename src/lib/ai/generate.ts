@@ -1,11 +1,9 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import type { z } from "zod";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { z } from "zod";
 import { cvDocumentSchema, cvReviewSchema } from "@/lib/cv/schema";
 import { buildHeader, toDocument } from "@/lib/cv/to-document";
 import type { CVData, CVDocument, CVReview, ReviewSuggestion } from "@/lib/cv/types";
-import { CV_MODEL, getAnthropic, hasApiKey } from "./client";
+import { CV_MODEL, getGemini, hasApiKey } from "./client";
 import {
   AIServiceError,
   GENERIC_GENERATION_MESSAGE,
@@ -20,7 +18,7 @@ import {
 } from "./prompts";
 
 /**
- * Server-side Claude calls. Each function returns validated, typed data and
+ * Server-side Gemini calls. Each function returns validated, typed data and
  * throws `AIServiceError` with a safe user-facing message on failure.
  */
 
@@ -84,47 +82,67 @@ async function structuredCall<T>(
   if (!hasApiKey()) {
     throw new AIServiceError(NOT_CONFIGURED_MESSAGE, 503);
   }
-  const client = getAnthropic();
+  const client = getGemini();
   try {
-    const response = await client.beta.messages.parse({
+    const interaction = await client.interactions.create({
       model: CV_MODEL,
-      max_tokens: 16000,
-      system,
-      messages: [{ role: "user", content: userContent }],
-      output_config: { format: zodOutputFormat(schema), effort: "medium" },
-      // Route safety-classifier declines to Anthropic's recommended fallback
-      // model server-side instead of surfacing a refusal to the student.
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      system_instruction: system,
+      input: userContent,
+      response_format: { type: "text", mime_type: "application/json", schema: toJsonSchema(schema) },
+      generation_config: { max_output_tokens: 16000, thinking_level: "low" },
+      store: false,
     });
 
-    if (response.stop_reason === "refusal") {
+    if (interaction.status !== "completed" || !interaction.output_text) {
+      console.error(
+        `[eurocv] Gemini interaction ${interaction.status}`,
+        interaction.errors?.map((e) => e.code).join(",") ?? "",
+      );
       throw new AIServiceError(userMessage, 502);
     }
-    if (response.stop_reason === "max_tokens") {
+    const parsed = schema.safeParse(JSON.parse(interaction.output_text));
+    if (!parsed.success) {
+      console.error("[eurocv] Gemini output failed schema validation");
       throw new AIServiceError(userMessage, 502);
     }
-    const parsed = response.parsed_output;
-    if (!parsed) {
-      throw new AIServiceError(userMessage, 502);
-    }
-    return schema.parse(parsed);
+    return parsed.data;
   } catch (error) {
     if (error instanceof AIServiceError) throw error;
-    if (error instanceof Anthropic.AuthenticationError) {
-      console.error("[eurocv] Anthropic authentication failed");
+    const status = httpStatus(error);
+    if (status === 401 || status === 403) {
+      console.error("[eurocv] Gemini authentication failed");
       throw new AIServiceError(NOT_CONFIGURED_MESSAGE, 503, error);
     }
-    if (error instanceof Anthropic.RateLimitError) {
+    if (status === 429) {
       throw new AIServiceError("We're receiving a lot of requests right now. Please try again in a moment.", 429, error);
     }
-    if (error instanceof Anthropic.APIError) {
-      console.error(`[eurocv] Anthropic API error ${error.status}`);
+    if (status !== undefined) {
+      console.error(`[eurocv] Gemini API error ${status}`);
+      throw new AIServiceError(userMessage, 502, error);
+    }
+    if (error instanceof SyntaxError) {
+      console.error("[eurocv] Gemini returned invalid JSON");
       throw new AIServiceError(userMessage, 502, error);
     }
     console.error("[eurocv] Unexpected AI error", error instanceof Error ? error.name : error);
     throw new AIServiceError(userMessage, 502, error);
   }
+}
+
+/** Gemini accepts a JSON Schema subset; the draft marker is not part of it. */
+function toJsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const { $schema: _draft, ...rest } = z.toJSONSchema(schema);
+  void _draft;
+  return rest;
+}
+
+/** The SDK's interaction errors carry the HTTP status as `status` or `statusCode`. */
+function httpStatus(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const e = error as { status?: unknown; statusCode?: unknown };
+  if (typeof e.status === "number") return e.status;
+  if (typeof e.statusCode === "number") return e.statusCode;
+  return undefined;
 }
 
 /**

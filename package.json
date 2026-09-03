@@ -9,8 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.123.0",
     "@base-ui/react": "^1.7.0",
+    "@google/genai": "^2.21.0",
     "@paddle/paddle-js": "^1.6.5",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.5",
