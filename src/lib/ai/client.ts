@@ -18,8 +18,12 @@ export function getGemini(): GoogleGenAI {
   return client;
 }
 
-/** Any model listed as "free of charge" on the Gemini pricing page works here. */
-export const CV_MODEL = process.env.EUROCV_MODEL ?? "gemini-3.8-flash";
+/**
+ * Any model listed as "free of charge" on the Gemini pricing page works here.
+ * Measured on the free tier (Sep 2026): 3.7 Flash answers in ~8-20 s, while
+ * 3.8 Flash queued for 45-80 s per call, so 3.7 is the default.
+ */
+export const CV_MODEL = process.env.EUROCV_MODEL ?? "gemini-3.7-flash";
 
 export function hasApiKey(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
