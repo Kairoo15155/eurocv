@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
  * EuroCV wordmark with a ring of twelve dots — a quiet nod to the European
  * circle of stars, abstracted so it reads as a brand mark rather than a flag.
  * The same geometry is exported as static files in `public/brand/` (SVG and
- * PNG, dark and white versions) and as the favicon / social image in `src/app/`.
+ * PNG, dark and white versions) and as the social image in `src/app/`.
  */
 export function LogoMark({ className, size = 28 }: { className?: string; size?: number }) {
   const dots = Array.from({ length: 12 }, (_, i) => {
