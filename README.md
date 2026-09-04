@@ -46,6 +46,14 @@ src/
 public/fonts/          TTFs used by the PDF renderer
 ```
 
+## Brand assets
+
+`public/brand/` holds the logo as SVG (text outlined, so no font is needed) and PNG: `eurocv-logo*.svg|png`
+(horizontal lockup, dark and white versions), `eurocv-mark*.svg|png` (mark only) and `icon-*.png`. The favicon
+(`favicon.ico`, `icon.svg`, `apple-icon.png`) and the social preview (`opengraph-image.png`, `twitter-image.png`)
+live in `src/app/` and are picked up by Next.js automatically. `src/components/brand/logo.tsx` renders the same
+mark inline.
+
 ## How AI generation works
 
 1. The builder data (`CVData`) is mapped deterministically to a `CVDocument` (dates formatted, bullets split).

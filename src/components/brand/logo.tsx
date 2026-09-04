@@ -4,27 +4,29 @@ import { cn } from "@/lib/utils";
 /**
  * EuroCV wordmark with a ring of twelve dots — a quiet nod to the European
  * circle of stars, abstracted so it reads as a brand mark rather than a flag.
+ * The same geometry is exported as static files in `public/brand/` (SVG and
+ * PNG, dark and white versions) and as the favicon / social image in `src/app/`.
  */
 export function LogoMark({ className, size = 28 }: { className?: string; size?: number }) {
   const dots = Array.from({ length: 12 }, (_, i) => {
     const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-    const r = 9.5;
-    return { cx: 14 + r * Math.cos(angle), cy: 14 + r * Math.sin(angle) };
+    const r = 22.5;
+    return { cx: 32 + r * Math.cos(angle), cy: 32 + r * Math.sin(angle) };
   });
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 28 28"
+      viewBox="0 0 64 64"
       fill="none"
       aria-hidden="true"
       className={cn("shrink-0", className)}
     >
-      <rect width="28" height="28" rx="7" fill="currentColor" />
+      <rect width="64" height="64" rx="16" fill="currentColor" />
       {dots.map((d, i) => (
-        <circle key={i} cx={d.cx} cy={d.cy} r="1.35" fill="#ffffff" />
+        <circle key={i} cx={d.cx.toFixed(2)} cy={d.cy.toFixed(2)} r="2.9" fill="#ffffff" />
       ))}
-      <path d="M11.2 10.2h5.9M11.2 14h4.6M11.2 17.8h5.9" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M25.5 24.5h13M25.5 32h9.5M25.5 39.5h13" stroke="#ffffff" strokeWidth="3.6" strokeLinecap="round" />
     </svg>
   );
 }
