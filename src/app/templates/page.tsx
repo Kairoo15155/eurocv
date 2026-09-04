@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 };
 
 const details: Record<string, string[]> = {
-  classic: ["Serif typography", "Centred header", "Experience before projects", "Free"],
-  modern: ["Sans-serif typography", "Navy accent headings", "Projects before experience", "Pro"],
-  academic: ["Serif typography", "Education and honours first", "Languages and test scores near the top", "Pro"],
+  classic: ["Serif typography", "Centred header", "Experience before projects"],
+  modern: ["Sans-serif typography", "Navy accent headings", "Projects before experience"],
+  academic: ["Serif typography", "Education and honours first", "Languages and test scores near the top"],
 };
 
 export default function TemplatesPage() {
@@ -36,7 +36,6 @@ export default function TemplatesPage() {
           {TEMPLATES.map((t, i) => (
             <div key={t.id} className={`grid items-center gap-10 lg:grid-cols-2 ${i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""}`}>
               <div>
-                <p className="text-sm font-semibold tracking-wide text-brand uppercase">{t.pro ? "Pro" : "Free"}</p>
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight">{t.name}</h2>
                 <p className="mt-3 text-lg text-muted-foreground">{t.description}</p>
                 <ul className="mt-6 grid gap-2 sm:grid-cols-2">

@@ -1,20 +1,19 @@
 # Accounts: Supabase setup
 
-Accounts let students keep their CVs and their Pro purchase across devices. They are
+Accounts let students keep their CVs across devices. They are
 optional: without the Supabase variables the app runs anonymously with browser storage.
 
 Stack: [Supabase](https://supabase.com) free tier for Auth (email code, optional Google) and
-Postgres (CVs, purchases). Row Level Security ensures users only ever see their own rows.
+Postgres (CVs). Row Level Security ensures users only ever see their own rows.
 
 ## 1. Create the project
 
 1. Sign up at https://supabase.com and create a project (any region close to Europe, e.g. Frankfurt).
-2. In **Project settings → API** copy the **Project URL**, the **anon public** key and the
-   **service_role** key.
+2. In **Project settings → API** copy the **Project URL** and the **anon public** key.
 
 ## 2. Create the tables
 
-Open **SQL Editor**, paste the contents of `supabase/migrations/20260902000000_init.sql`, run it.
+Open **SQL Editor** and run each file in `supabase/migrations/` in order.
 
 ## 3. Configure Auth
 
@@ -53,7 +52,6 @@ paste its ID and secret under **Providers → Google**, then set `NEXT_PUBLIC_AU
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (server only) |
 | `NEXT_PUBLIC_AUTH_GOOGLE` | `true` once Google is configured |
 
 ## How it works in the app
@@ -62,6 +60,3 @@ paste its ID and secret under **Providers → Google**, then set `NEXT_PUBLIC_AU
 - `src/lib/auth/session.ts` reads the user on the server; `AuthProvider` exposes it to the UI.
 - `src/lib/store/cv-sync.ts` loads the account's CVs on sign-in, uploads CVs created
   anonymously in that browser, then writes every change through to the `cvs` table.
-- `src/lib/payments/entitlement.ts` grants Pro from the `purchases` table for signed-in users
-  and from the signed cookie for anonymous ones; an anonymous purchase is attached to the
-  account on the next sign-in, and purchases made on another device are found via Paddle by email.

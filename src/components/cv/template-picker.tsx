@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, LockIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { TEMPLATES } from "@/lib/cv/options";
 import type { TemplateId } from "@/lib/cv/types";
 import { cn } from "@/lib/utils";
@@ -8,21 +8,16 @@ import { cn } from "@/lib/utils";
 export function TemplatePicker({
   value,
   onChange,
-  isPro = true,
-  showLocks = true,
   layout = "list",
 }: {
   value: TemplateId;
   onChange: (id: TemplateId) => void;
-  isPro?: boolean;
-  showLocks?: boolean;
   layout?: "list" | "row";
 }) {
   return (
     <div role="radiogroup" aria-label="CV template" className={cn(layout === "row" ? "flex gap-2" : "flex flex-col gap-2")}>
       {TEMPLATES.map((t) => {
         const selected = t.id === value;
-        const locked = showLocks && t.pro && !isPro;
         return (
           <button
             key={t.id}
@@ -40,13 +35,7 @@ export function TemplatePicker({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{t.name}</span>
-                {locked ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    <LockIcon className="size-2.5" /> Pro
-                  </span>
-                ) : selected ? (
-                  <CheckIcon className="size-3.5 text-brand" />
-                ) : null}
+                {selected && <CheckIcon className="size-3.5 text-brand" />}
               </div>
               {layout === "list" && <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{t.description}</p>}
             </div>

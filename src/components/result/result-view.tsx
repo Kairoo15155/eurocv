@@ -10,7 +10,6 @@ import { CVPaper } from "@/components/cv/cv-paper";
 import { TemplatePicker } from "@/components/cv/template-picker";
 import { SiteShell } from "@/components/layout/site-shell";
 import { ImprovePanel } from "@/components/result/improve-panel";
-import { UpgradeDialog } from "@/components/result/upgrade-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,11 +21,11 @@ import {
   generateCVRequest,
   reviewCVRequest,
 } from "@/lib/api/client";
-import { FREE_TEMPLATE, TEMPLATES } from "@/lib/cv/options";
+import { TEMPLATES } from "@/lib/cv/options";
 import { toDocument } from "@/lib/cv/to-document";
 import type { ReviewSuggestion, TemplateId } from "@/lib/cv/types";
 import { useCVStore, useHasHydrated } from "@/lib/store/cv-store";
-import { useEntitlement, useIsPro } from "@/lib/store/user-store";
+import { useAccount } from "@/lib/store/user-store";
 
 export function ResultView({ id }: { id: string }) {
   const router = useRouter();
@@ -35,11 +34,8 @@ export function ResultView({ id }: { id: string }) {
   const setTemplate = useCVStore((s) => s.setTemplate);
   const setDocument = useCVStore((s) => s.setDocument);
   const setReview = useCVStore((s) => s.setReview);
-  const isPro = useIsPro();
-  const { aiAvailable } = useEntitlement();
+  const { aiAvailable } = useAccount();
 
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [downloading, setDownloading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
@@ -77,33 +73,15 @@ export function ResultView({ id }: { id: string }) {
   const document = cv.document ?? toDocument(cv.data);
   const generated = Boolean(cv.document);
   const stale = Boolean(cv.generatedAt && cv.dataUpdatedAt > cv.generatedAt);
-  const returnTo = `/cv/${id}`;
 
-  const requirePro = (reason: string) => {
-    if (isPro) return true;
-    setUpgradeReason(reason);
-    setUpgradeOpen(true);
-    return false;
-  };
-
-  const handleTemplate = (t: TemplateId) => {
-    const template = TEMPLATES.find((x) => x.id === t);
-    if (template?.pro && !requirePro(`The ${template.name} template is included in EuroCV Pro.`)) return;
-    setTemplate(id, t);
-  };
+  const handleTemplate = (t: TemplateId) => setTemplate(id, t);
 
   const handleDownload = async () => {
-    if (!requirePro("PDF download is included in EuroCV Pro.")) return;
     setDownloading(true);
     try {
       await downloadPdf(document, cv.templateId);
       toast.success("Your CV is downloading.");
     } catch (error) {
-      if (error instanceof ApiError && error.proRequired) {
-        setUpgradeReason("PDF download is included in EuroCV Pro.");
-        setUpgradeOpen(true);
-        return;
-      }
       toast.error(error instanceof ApiError ? error.message : "We couldn't create your PDF right now. Please try again.");
     } finally {
       setDownloading(false);
@@ -125,18 +103,12 @@ export function ResultView({ id }: { id: string }) {
   };
 
   const runReview = async () => {
-    if (!requirePro("AI CV improvement is included in EuroCV Pro.")) return;
     setReviewing(true);
     setReviewError(null);
     try {
       const review = await reviewCVRequest(document, cv.data);
       setReview(id, review);
     } catch (error) {
-      if (error instanceof ApiError && error.proRequired) {
-        setUpgradeReason("AI CV improvement is included in EuroCV Pro.");
-        setUpgradeOpen(true);
-        return;
-      }
       setReviewError(error instanceof ApiError ? error.message : "We couldn't review your CV right now. Please try again.");
     } finally {
       setReviewing(false);
@@ -158,8 +130,6 @@ export function ResultView({ id }: { id: string }) {
   };
 
   const templateName = TEMPLATES.find((t) => t.id === cv.templateId)?.name ?? "Classic";
-  const effectiveTemplate: TemplateId =
-    !isPro && TEMPLATES.find((t) => t.id === cv.templateId)?.pro ? FREE_TEMPLATE : cv.templateId;
 
   const sidebar = (
     <div className="space-y-5">
@@ -167,7 +137,7 @@ export function ResultView({ id }: { id: string }) {
         <h2 className="font-semibold">Template</h2>
         <p className="mt-1 text-sm text-muted-foreground">Switch anytime. Your information stays the same.</p>
         <div className="mt-4">
-          <TemplatePicker value={effectiveTemplate} onChange={handleTemplate} isPro={isPro} />
+          <TemplatePicker value={cv.templateId} onChange={handleTemplate} />
         </div>
       </div>
 
@@ -189,15 +159,6 @@ export function ResultView({ id }: { id: string }) {
             </Button>
           )}
         </div>
-        {!isPro && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Free plan: preview with the Classic template. PDF download, all templates and AI review are part of{" "}
-            <Link href="/pricing" className="underline underline-offset-2">
-              Pro (€4.99)
-            </Link>
-            .
-          </p>
-        )}
       </div>
     </div>
   );
@@ -268,7 +229,7 @@ export function ResultView({ id }: { id: string }) {
             </TabsList>
             <TabsContent value="preview" className="mt-4">
               <div className="rounded-xl border border-border bg-slate-100/80 p-2">
-                <CVPaper document={document} templateId={effectiveTemplate} />
+                <CVPaper document={document} templateId={cv.templateId} />
               </div>
               <div className="mt-4 flex flex-col gap-2">
                 <Button className="h-11 w-full" onClick={handleDownload} disabled={downloading}>
@@ -303,12 +264,10 @@ export function ResultView({ id }: { id: string }) {
 
         <div className="hidden lg:block">
           <div className="rounded-xl border border-border bg-slate-100/80 p-6">
-            <CVPaper document={document} templateId={effectiveTemplate} />
+            <CVPaper document={document} templateId={cv.templateId} />
           </div>
         </div>
       </div>
-
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} returnTo={returnTo} reason={upgradeReason} />
 
       {regenerating && (
         <GeneratingScreen

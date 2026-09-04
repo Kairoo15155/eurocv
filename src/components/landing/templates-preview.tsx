@@ -29,9 +29,8 @@ export function TemplatesPreview() {
                   <CVPaper document={EXAMPLE_DOCUMENT} templateId={t.id} shadow={false} />
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between px-1">
+              <div className="mt-3 px-1">
                 <p className="font-medium">{t.name}</p>
-                <p className="text-xs text-muted-foreground">{t.pro ? "Pro" : "Free"}</p>
               </div>
             </Link>
           ))}

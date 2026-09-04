@@ -10,7 +10,6 @@ const groups = [
       { href: "/builder/new", label: "Create my CV" },
       { href: "/example", label: "Example CV" },
       { href: "/templates", label: "Templates" },
-      { href: "/pricing", label: "Pricing" },
     ],
   },
   {

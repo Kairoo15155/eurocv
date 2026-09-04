@@ -55,7 +55,6 @@ export function UserMenu({ variant = "desktop" }: { variant?: "desktop" | "mobil
         <DropdownMenuGroup>
           <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
           <DropdownMenuItem render={<Link href="/dashboard" />}>My CVs</DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/pricing" />}>Plan &amp; billing</DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>

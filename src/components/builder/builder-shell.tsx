@@ -20,7 +20,7 @@ import { toDocument } from "@/lib/cv/to-document";
 import type { CVData } from "@/lib/cv/types";
 import { validateAll, validateStep, type FieldErrors } from "@/lib/cv/validation";
 import { useCVStore, useHasHydrated } from "@/lib/store/cv-store";
-import { useEntitlement, useIsPro } from "@/lib/store/user-store";
+import { useAccount } from "@/lib/store/user-store";
 
 export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?: number }) {
   const router = useRouter();
@@ -29,8 +29,7 @@ export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?
   const updateData = useCVStore((s) => s.updateData);
   const setTemplate = useCVStore((s) => s.setTemplate);
   const setDocument = useCVStore((s) => s.setDocument);
-  const isPro = useIsPro();
-  const { aiAvailable } = useEntitlement();
+  const { aiAvailable } = useAccount();
 
   const [step, setStep] = useState(Math.min(Math.max(initialStep, 0), BUILDER_STEPS.length - 1));
   const [maxReached, setMaxReached] = useState(step);
@@ -176,7 +175,7 @@ export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?
               <p className="text-sm font-medium">Live preview</p>
               <span className="text-xs text-muted-foreground">Updates as you type</span>
             </div>
-            <TemplatePicker value={cv.templateId} onChange={(t) => setTemplate(id, t)} isPro={isPro} layout="row" />
+            <TemplatePicker value={cv.templateId} onChange={(t) => setTemplate(id, t)} layout="row" />
             <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-slate-100/80 p-4">
               <CVPaper document={document} templateId={cv.templateId} />
             </div>
@@ -197,7 +196,7 @@ export function BuilderShell({ id, initialStep = 0 }: { id: string; initialStep?
             <div className="border-b border-border px-4 pt-3 pb-3 pr-12">
               <p className="font-medium">Preview</p>
               <div className="mt-2 max-w-[360px]">
-                <TemplatePicker value={cv.templateId} onChange={(t) => setTemplate(id, t)} isPro={isPro} layout="row" />
+                <TemplatePicker value={cv.templateId} onChange={(t) => setTemplate(id, t)} layout="row" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-100/80 p-3">

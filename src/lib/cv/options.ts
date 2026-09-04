@@ -165,26 +165,21 @@ export const TEMPLATES: {
   id: TemplateId;
   name: string;
   description: string;
-  pro: boolean;
 }[] = [
   {
     id: "classic",
     name: "Classic",
     description: "A simple, timeless academic CV. Serif typography, clear sections.",
-    pro: false,
   },
   {
     id: "modern",
     name: "Modern",
     description: "Clean sans-serif layout with subtle hierarchy and a compact header.",
-    pro: true,
   },
   {
     id: "academic",
     name: "Academic",
     description: "Structured for university admissions, with education and achievements first.",
-    pro: true,
   },
 ];
 
-export const FREE_TEMPLATE: TemplateId = "classic";

@@ -33,7 +33,7 @@ export function Hero() {
             </ButtonLink>
           </div>
           <p className="fade-up fade-up-delay-3 mt-5 text-sm text-muted-foreground">
-            Free to start · No account needed · Download as PDF from €4.99
+            Free · No account needed · Download as PDF
           </p>
         </div>
 

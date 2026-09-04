@@ -3,32 +3,18 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 
-export type Plan = "free" | "pro";
-
-export interface PaymentsInfo {
-  configured: boolean;
-  environment: "sandbox" | "production";
-  clientToken: string | null;
-  priceId: string | null;
-}
-
-/**
- * Entitlement state, loaded from the server. The server keeps the Pro
- * entitlement in a signed cookie, so this store is only a cache of what the
- * server said; `refresh()` re-reads it after checkout or restore.
- */
 export interface AccountUser {
   id: string;
   email: string;
   name: string | null;
 }
 
+/**
+ * Session state, loaded from the server. This store is only a cache of what
+ * the server said; `refresh()` re-reads it after sign-in or sign-out.
+ */
 interface UserStore {
-  plan: Plan;
-  email: string | null;
   user: AccountUser | null;
-  payments: PaymentsInfo;
-  devUnlock: boolean;
   /** Whether the server can run AI generation (a Gemini key is configured). */
   aiAvailable: boolean;
   hasHydrated: boolean;
@@ -38,25 +24,17 @@ interface UserStore {
 let inflight: Promise<void> | null = null;
 
 export const useUserStore = create<UserStore>()((set) => ({
-  plan: "free",
-  email: null,
   user: null,
-  payments: { configured: false, environment: "sandbox", clientToken: null, priceId: null },
-  devUnlock: false,
   aiAvailable: true,
   hasHydrated: false,
   refresh: () => {
     if (inflight) return inflight;
-    inflight = fetch("/api/entitlement", { cache: "no-store" })
+    inflight = fetch("/api/session", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: Partial<UserStore> | null) => {
+      .then((data: { user?: AccountUser | null; ai?: { available?: boolean } } | null) => {
         set({
-          plan: data?.plan === "pro" ? "pro" : "free",
-          email: data?.email ?? null,
           user: data?.user ?? null,
-          payments: data?.payments ?? { configured: false, environment: "sandbox", clientToken: null, priceId: null },
-          devUnlock: Boolean(data?.devUnlock),
-          aiAvailable: (data as { ai?: { available?: boolean } } | null)?.ai?.available !== false,
+          aiAvailable: data?.ai?.available !== false,
           hasHydrated: true,
         });
       })
@@ -68,16 +46,12 @@ export const useUserStore = create<UserStore>()((set) => ({
   },
 }));
 
-/** Returns the entitlement, loading it from the server on first use. */
-export function useEntitlement(): UserStore {
+/** Returns the session state, loading it from the server on first use. */
+export function useAccount(): UserStore {
   const store = useUserStore();
   const { hasHydrated, refresh } = store;
   useEffect(() => {
     if (!hasHydrated) void refresh();
   }, [hasHydrated, refresh]);
   return store;
-}
-
-export function useIsPro(): boolean {
-  return useEntitlement().plan === "pro";
 }

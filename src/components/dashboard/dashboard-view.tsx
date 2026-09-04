@@ -1,24 +1,18 @@
 "use client";
 
 import Link from "next/link";
-
-import { useState } from "react";
 import { PlusIcon } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CVCard } from "@/components/dashboard/cv-card";
 import { Container } from "@/components/layout/container";
-import { UpgradeDialog } from "@/components/result/upgrade-dialog";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sortedCVs, useCVStore, useHasHydrated } from "@/lib/store/cv-store";
-import { useIsPro } from "@/lib/store/user-store";
 
 export function DashboardView() {
   const hydrated = useHasHydrated();
   const cvs = useCVStore((s) => s.cvs);
-  const isPro = useIsPro();
   const { user, enabled: authEnabled } = useAuth();
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const list = sortedCVs(cvs);
 
   return (
@@ -27,7 +21,6 @@ export function DashboardView() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">My CVs</h1>
           <p className="mt-1 text-muted-foreground">
-            {isPro ? "EuroCV Pro · " : ""}
             {user ? (
               <>Saved to your account ({user.email}).</>
             ) : authEnabled ? (
@@ -69,12 +62,10 @@ export function DashboardView() {
       ) : (
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((cv) => (
-            <CVCard key={cv.id} cv={cv} isPro={isPro} onUpgrade={() => setUpgradeOpen(true)} />
+            <CVCard key={cv.id} cv={cv} />
           ))}
         </div>
       )}
-
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} returnTo="/dashboard" />
     </Container>
   );
 }

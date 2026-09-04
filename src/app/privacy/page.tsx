@@ -31,7 +31,6 @@ export default function PrivacyPage() {
         <ul>
           <li>Your CVs are saved in your own browser’s local storage. They are not stored on EuroCV servers.</li>
           <li>Clearing your browser data or using a different device means the CVs will not be there.</li>
-          <li>Your Pro status (in preview mode) is also stored locally in your browser.</li>
         </ul>
       </section>
       <section>

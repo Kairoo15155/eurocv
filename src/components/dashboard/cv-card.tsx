@@ -23,7 +23,7 @@ import { toDocument } from "@/lib/cv/to-document";
 import type { SavedCV } from "@/lib/cv/types";
 import { useCVStore } from "@/lib/store/cv-store";
 
-export function CVCard({ cv, isPro, onUpgrade }: { cv: SavedCV; isPro: boolean; onUpgrade: () => void }) {
+export function CVCard({ cv }: { cv: SavedCV }) {
   const deleteCV = useCVStore((s) => s.deleteCV);
   const duplicateCV = useCVStore((s) => s.duplicateCV);
   const renameCV = useCVStore((s) => s.renameCV);
@@ -36,12 +36,10 @@ export function CVCard({ cv, isPro, onUpgrade }: { cv: SavedCV; isPro: boolean; 
   const template = TEMPLATES.find((t) => t.id === cv.templateId);
 
   const download = async () => {
-    if (!isPro) return onUpgrade();
     setDownloading(true);
     try {
       await downloadPdf(document, cv.templateId);
     } catch (error) {
-      if (error instanceof ApiError && error.proRequired) return onUpgrade();
       toast.error(error instanceof ApiError ? error.message : "We couldn't create your PDF right now. Please try again.");
     } finally {
       setDownloading(false);
@@ -96,7 +94,6 @@ export function CVCard({ cv, isPro, onUpgrade }: { cv: SavedCV; isPro: boolean; 
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  if (!isPro) return onUpgrade();
                   duplicateCV(cv.id);
                   toast.success("CV duplicated.");
                 }}

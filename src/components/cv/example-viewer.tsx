@@ -14,7 +14,7 @@ export function ExampleViewer() {
         <h2 className="text-sm font-semibold">Template</h2>
         <p className="mt-1 text-sm text-muted-foreground">Same content, three layouts.</p>
         <div className="mt-4">
-          <TemplatePicker value={templateId} onChange={setTemplateId} showLocks={false} />
+          <TemplatePicker value={templateId} onChange={setTemplateId} />
         </div>
       </aside>
       <div className="rounded-xl border border-border bg-canvas p-3 sm:p-8">

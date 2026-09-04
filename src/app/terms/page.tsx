@@ -42,17 +42,16 @@ export default function TermsPage() {
         </p>
       </section>
       <section>
-        <h2>Payments</h2>
+        <h2>Price</h2>
         <p>
-          EuroCV Pro is offered as a one-time purchase. While payments are in preview mode no charge is made and Pro
-          features are unlocked for evaluation in your browser. When live payments launch, refund terms will be published
-          on the pricing page before purchase.
+          EuroCV is free to use. Every feature, including PDF download, all templates and AI review, is available
+          without payment.
         </p>
       </section>
       <section>
         <h2>Availability and changes</h2>
         <p>
-          We may change or discontinue features, templates or pricing. Because your CVs are stored in your browser, we
+          We may change or discontinue features or templates. Because your CVs are stored in your browser, we
           recommend downloading a PDF of anything you want to keep.
         </p>
       </section>

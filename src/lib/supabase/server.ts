@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseConfig } from "./config";
 
 /** Server Components / Server Actions / Route Handlers using next/headers cookies. */
@@ -34,15 +34,4 @@ export function createRequestSupabase(request: NextRequest): SupabaseClient | nu
       setAll: () => {},
     },
   });
-}
-
-/**
- * Service-role client for trusted server operations (recording purchases,
- * attaching them to accounts). Never expose this to the browser.
- */
-export function createAdminSupabase(): SupabaseClient | null {
-  const cfg = getSupabaseConfig();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!cfg || !serviceKey) return null;
-  return createClient(cfg.url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }

@@ -4,7 +4,6 @@ import { applyImprovements } from "@/lib/ai/generate";
 import { GENERIC_GENERATION_MESSAGE } from "@/lib/ai/errors";
 import { cvDataSchema, cvDocumentSchema, cvReviewSchema } from "@/lib/cv/schema";
 import { handleRouteError, parseBody } from "@/lib/api/http";
-import { requirePro } from "@/lib/payments/entitlement";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -16,8 +15,6 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const gate = await requirePro(request);
-  if (gate) return gate;
   const body = await parseBody(request, bodySchema);
   if (!body.ok) return body.response;
   try {

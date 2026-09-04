@@ -15,10 +15,6 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
-  /** True when the server refused because the caller isn't on EuroCV Pro. */
-  get proRequired(): boolean {
-    return this.status === 402 || this.code === "pro_required";
-  }
 }
 
 async function readError(response: Response): Promise<{ message?: string; code?: string }> {
@@ -104,16 +100,4 @@ export async function downloadPdf(document: CVDocument, templateId: TemplateId):
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-export async function confirmPurchase(transactionId: string): Promise<{ plan: "pro"; email: string }> {
-  return post("/api/checkout/confirm", { transactionId }, "We couldn't confirm your payment right now. Please try again.");
-}
-
-export async function restorePurchase(email: string): Promise<{ plan: "pro"; email: string }> {
-  return post("/api/checkout/restore", { email }, "We couldn't check your purchase right now. Please try again.");
-}
-
-export async function devUnlockPro(): Promise<{ plan: "pro" }> {
-  return post("/api/checkout/dev-unlock", {}, "Not available.");
 }

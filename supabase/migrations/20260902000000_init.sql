@@ -1,4 +1,4 @@
--- EuroCV schema: CVs and purchases owned by Supabase Auth users.
+-- EuroCV schema: CVs owned by Supabase Auth users. (The purchases table created here was dropped in a later migration.)
 
 create table if not exists public.cvs (
   id text primary key,

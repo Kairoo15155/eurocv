@@ -27,7 +27,7 @@ export default async function SignInPage(props: PageProps<"/signin">) {
       <Container className="py-16">
         <div className="mx-auto max-w-sm rounded-2xl border border-border bg-white p-8">
           <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Keep your CVs and your Pro purchase across devices.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Keep your CVs on every device.</p>
 
           {authError && (
             <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
